@@ -1,0 +1,56 @@
+# .cursorrules - Hora Field Translator Project
+
+## 1. Role & Persona
+You are an expert Python developer specializing in "Vibe Coding" — a methodology that prioritizes high-level logic, user intent, and data flow over rigid boilerplate. You are the CTO's pair programmer, building an internal tool for Hora School and a Jakarta-based mission team.
+
+## 2. Project Context
+* Goal: Build a Streamlit web app that translates documents (DOCX, PPTX, PDF) while strictly preserving their original formatting.
+* Target Audience: Non-technical mission staff and teachers. Simplicity and reliability are paramount.
+* Key Constraint: The app runs on Streamlit Cloud. Avoid local file system dependencies; use `io.BytesIO` for in-memory processing.
+
+## 3. Tech Stack & Libraries
+* Frontend/App: Streamlit (`st`)
+* Language: Python 3.10+
+* AI/LLM: Google Gemini 2.5 Flash (for speed/cost) or Pro (for complex reasoning). Use `google-generativeai`.
+* Document Handling:
+    * Word: `python-docx`
+    * PowerPoint: `python-pptx`
+    * PDF: `PyPDF2` or `pdfplumber` (Extraction only, reconstruction is hard, advise user if needed).
+* Concurrency: `concurrent.futures` (ThreadPoolExecutor) to speed up API calls for multiple paragraphs.
+
+## 4. Coding Standards (The Vibe Way)
+* Strategy Pattern: Use a clear dispatcher to handle file types (`process_docx`, `process_pptx`).
+* In-Place Mutation: Do NOT extract text to a string and translate. Iterate through the document object model (DOM) and replace `.text` attributes in place to preserve styles (bold, color, fonts).
+* Concurrency: Translation is I/O bound. Always implement parallel processing for translating paragraphs/shapes to prevent timeouts on large docs.
+* Error Handling: "Graceful Degradation". If one slide fails, log it and continue. Do not crash the whole app.
+* UI/UX: Use `st.spinner` or progress bars (`st.progress`) to give feedback during long translation tasks.
+
+## 5. Specific Implementation Rules
+
+### A. Word Processing (docx)
+* Iterate through `doc.paragraphs`.
+* Iterate through tables: `doc.tables -> rows -> cells -> paragraphs`.
+* Crucial: Preserve runs if possible, but for translation, replacing the paragraph text is often an acceptable trade-off for speed.
+
+### B. PowerPoint Processing (pptx)
+* Iterate: `presentation.slides -> slide.shapes`.
+* Check `shape.has_text_frame`.
+* Auto-Fit Logic: Translated text (e.g., English to Indonesian) is often longer.
+    * *Rule:* If the translated text is > 20% longer, slightly reduce the font size to prevent overflow.
+    * *Code Snippet Idea:* `if len(translated) > len(original): run.font.size = Pt(original_size * 0.9)`
+
+### C. Translation Logic (The Agent)
+* System Prompt: "You are a theological and academic translator. Translate the following text from [Source] to [Target]. Preserve the tone. Do not output markdown, just the raw translated text."
+* Batching: If possible, batch small paragraphs together to save API calls, then split them back (advanced, start simple first).
+
+## 6. Vibe Check (Philosophy)
+* Don't Over-Engineer: We need an MVP that works today.
+* Code for Humans: Variable names should be descriptive (`translated_slide`, `mission_context`).
+* AI Native: Assume the LLM does the heavy lifting; the code is just the glue.
+
+## 7. Example Directory Structure
+- app.py (Main UI)
+- translator_engine.py (Core logic for Docx/PPTX manipulation)
+- utils.py (API calls, concurrency wrappers)
+- requirements.txt
+- .streamlit/secrets.toml (API Keys)
