@@ -1,4 +1,5 @@
 from io import BytesIO
+import os
 
 import streamlit as st
 
@@ -96,9 +97,6 @@ def _translate_file(
 
 def main() -> None:
     st.set_page_config(page_title="MMS Mission TranslatorEngine", layout="wide")
-    st.title("MMS Mission TranslatorEngine")
-    st.caption("DOCX/PPTX 翻译（保留原始格式）")
-
     laozhang_api_key, base_url = load_laozhang_config()
     if not laozhang_api_key:
         laozhang_api_key = st.secrets.get("LAOZHANG_API_KEY")
@@ -106,6 +104,18 @@ def main() -> None:
         base_url = "https://api.laozhang.ai/v1"
 
     gemini_api_key = load_gemini_key() or st.secrets.get("GEMINI_API_KEY")
+
+    app_password = st.secrets.get("APP_PASSWORD") or os.getenv("APP_PASSWORD")
+    if not app_password:
+        st.warning("未设置 APP_PASSWORD，无法启用访问控制。")
+        st.stop()
+    password = st.sidebar.text_input("请输入访问密码", type="password")
+    if password != app_password:
+        st.warning("请输入密码以解锁应用。")
+        st.stop()
+
+    st.title("MMS Mission TranslatorEngine")
+    st.caption("DOCX/PPTX 翻译（保留原始格式）")
 
     uploaded_file = st.file_uploader(
         "上传文件",
